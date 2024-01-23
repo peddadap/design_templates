@@ -41,6 +41,7 @@ at spike up, most noticably systems like airbyte , airflow and an operational co
 ```mermaid
 
 graph TB
+  
   subgraph "Airbyte System"
     subgraph "Sources"
       A(Source 1)
@@ -52,17 +53,22 @@ graph TB
       D(Connector 1)
       E(Connector 2)
       F(Connector N)
+      SC(Shared Components)
     end
 
-    subgraph "Scheduler"
+    subgraph "Airflow"
       G(Scheduler)
+      subgraph "DAG"
+        1[Task 1]
+        2[Task 2]
+        3[Task 3]
+        4[Task 4]
+        5[Task 5]
+    end
     end
 
-    subgraph "API"
-      H(API Server)
-    end
-
-    subgraph "Destinations"
+ 
+    subgraph "S3"
       I(Destination 1)
       J(Destination 2)
       K(Destination N)
@@ -75,10 +81,15 @@ end
   D --> G
   E --> G
   F --> G
-  G --> H
+
   G --> I
   G --> J
   G --> K
+   1--> 2
+  1 --> 3
+  2 --> 4
+  3 --> 4
+  4 --> 5
 
 
 ```
