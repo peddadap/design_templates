@@ -190,8 +190,7 @@ end
 ``` mermaid
 graph TB
     subgraph SnowFlake
-        SF.A[S3 Parquet]-->SF.B[SF External Tables
-                                 Bronze/RAW]
+        SF.A[S3 Parquet]-->SF.B[Bronze/RAW]
         SF.B-->SF.C(DBT Process 1)
         SF.C-->SF.D[SF Silver]
         SF.D -->SF.E(DBT Process 2)
