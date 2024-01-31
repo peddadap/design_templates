@@ -298,8 +298,8 @@ graph TD
 graph TD
     subgraph Kubernetes
         subgraph Compute Cluster
-            A1[ $ Amazon EKS Control Plane]
-            A2[ $$ Node Group - AutoScale ]
+            A1[Amazon EKS Control Plane]
+            A2[Node Group - AutoScale ]
 
         end
 
