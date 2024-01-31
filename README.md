@@ -304,10 +304,8 @@ subgraph Kubernetes
   end
 
   subgraph Pods-Runtime
-    B1(AirFlow Console
-    Scheduler)
-    B2(Meta Data
-    Store)
+    B1(AirFlow Console \n Scheduler)
+    B2(Meta Data \n Store)
     B3(OpCenter
     Console)
     subgraph Ephimeral-Pods
