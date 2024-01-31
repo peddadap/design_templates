@@ -9,9 +9,9 @@ at spike up, most noticably airbyte , airflow and snowflake and with a brand new
 - [Overview](#overview)
 - [System Architecture](#system-architecture)
 - [Flow Diagram](#flow-diagram)
-- [Sequence Diagram](#sequence-diagram)
-- [Installation](#installation)
-- [Usage](#usage)
+- [Sequence Diagram](#sequence-flow)
+- [Data Quality](#dq-framework)
+- [Deployment Model](#dq-model)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -199,27 +199,142 @@ end
 
 ```
 
-## Sequence Diagram
-
+## Sequence Flow
+- User Flow On Opcenter
+- Similar Flow is scheduled nightly in airbyte for OpCenter Manager to do similar connectivity checks
 ```mermaid
 sequenceDiagram
-  participant User
-  participant System
-  User->>System: Request
-  activate System
-  System-->>User: Response
-  deactivate System
+    Actor User
+    participant OpCenter-UX
+    participant OpCenter-API
+    participant AirByte
+    User->>OpCenter-UX: AirByte Management
+    activate OpCenter-UX
+    OpCenter-UX ->>OpCenter-API: Request
+    activate OpCenter-API
+    OpCenter-API->>AirByte:Validate
+    Activate AirByte
+    AirByte-->OpCenter-API:Response
+    deactivate AirByte
+    OpCenter-API-->OpCenter-UX:Response
+    deactivate OpCenter-API
+    OpCenter-UX-->User:Source Status ?
+    deactivate OpCenter-UX
+    User->>OpCenter-UX: Logs & Diagnostics | Platform-Operator Grouping
+    activate OpCenter-UX
+    OpCenter-UX->>OpCenter-API:Request
+    activate OpCenter-API
+    OpCenter-API->>OpCenter-Storage:Request
+    activate OpCenter-Storage
+    OpCenter-Storage->OpCenter-API:Response
+    deactivate OpCenter-Storage
+    OpCenter-API->OpCenter-UX:Response
+    deactivate OpCenter-API
+    OpCenter-UX->User:Response
+    deactivate OpCenter-UX
+    OpCenter-Manager->>OpCenter-API:Request
+   
+```
+## DQ Framework
+There are 4 main components of Any DQ System, and they are:
+
+- Metrics Computation:
+    - Profiles leverages Analyzers to analyze each column of a dataset.
+    - Analyzers serve here as a foundational module that computes metrics for data profiling and validation at scale.
+- Constraint Suggestion:
+    - Specify rules for various groups of Analyzers to be run over a dataset to return back a collection of constraints suggested to run in a Verification Suite.
+- Constraint Verification:
+    - Perform data validation on a dataset with respect to various constraints set by you.
+- Metrics Repository
+    - Allows for persistence and tracking of Deequ runs over time.
+```mermaid
+
+graph TD
+  subgraph Data
+    A[DataSet # 1]
+    B[DataSet # 2]
+  end
+  subgraph DQ-Framework
+    subgraph Rules
+        C1[Data Quality Constraitns]
+        C2(Constraint Suggestion)
+        C3(Constraint Verification)
+    end
+
+    subgraph Validators
+        D1[Profilers]
+        D2[Analyzers]
+        D3[Checks]
+    end
+
+    subgraph Metrics
+        E1[Repository]
+        E2[AWS S3]
+        E3[In-Memory]
+    end
+  end
+  subgraph Reports
+    F1[Reports]
+  end
+
+  Rules-->Validators
+  Metrics<-->Rules
+  Data-->Validators
+  Reports<-->Metrics
+
+
 ```
 
-[Use Mermaid.js syntax to create a sequence diagram illustrating the interaction between different parts of your system.]
+## Deployment Model
 
-## Installation
+- Spike data platform will be baed on Kubernetes Stack
+- Kubernetes will be designed in a way to set the node group to auto-scale
+- Few Pods like ; AirFlow Scheduler; Op-Center Cosole will have persistant pods
+- Pods will be short lived, the ones that are related to Airflow and AirByte Tasks
 
-[Provide instructions on how to install or set up your software design.]
+- An Abstract End Deployment Model
 
-## Usage
+``` mermaid
+graph TD
+subgraph Kubernetes
+  subgraph Compute Cluster
+    A1[ $ Amazon EKS Control Plane]
+    A2[ $$ Node Group - AutoScale ]
 
-[Explain how to use your software design. Include examples or scenarios.]
+  end
+
+  subgraph Pods-Runtime
+    B1(AirFlow Console
+    Scheduler)
+    B2(Meta Data
+    Store)
+    B3(OpCenter
+    Console)
+    subgraph Ephimeral-Pods
+        C1(DAG Tasks)
+        C2(AirByte Tasks)
+        C3( Other Computes/ AI Tasks )
+
+    end
+  end
+
+  end
+    subgraph External-Systems
+        D1(AWS - S3)
+        D2(Other Data Stores)
+        D3(SnowFlake)
+    end
+
+  A1-->|Manages| A2
+  A2 -->|Fixed| B1
+  A2-->|Fixed|B3
+  A2-.->Ephimeral-Pods
+  B3-->B2
+  B1-->B2
+  Ephimeral-Pods-->B2
+  Pods-Runtime -->External-Systems
+
+```
 
 ## Contributing
 
