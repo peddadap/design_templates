@@ -298,16 +298,15 @@ graph TD
 graph TD
     subgraph Kubernetes
         subgraph Compute Cluster
-            A1[Amazon EKS Control Plane]
-            A2[Node Group - AutoScale ]
+            A1[$Amazon EKS \n Control Plane]
+            A2[$$Node Group \n AutoScale ]
 
         end
 
         subgraph Pods-Runtime
             B1(AirFlow Console \n Scheduler)
             B2(Meta Data \n Store)
-            B3(OpCenter
-            Console)
+            B3(OpCenter \n Console)
             subgraph Ephimeral-Pods
                 C1(DAG Tasks)
                 C2(AirByte Tasks)
