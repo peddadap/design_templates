@@ -294,29 +294,28 @@ graph TD
 
 - An Abstract End Deployment Model
 
-``` mermaid
+```mermaid
 graph TD
-subgraph Kubernetes
-  subgraph Compute Cluster
-    A1[ $ Amazon EKS Control Plane]
-    A2[ $$ Node Group - AutoScale ]
+    subgraph Kubernetes
+        subgraph Compute Cluster
+            A1[ $ Amazon EKS Control Plane]
+            A2[ $$ Node Group - AutoScale ]
 
-  end
+        end
 
-  subgraph Pods-Runtime
-    B1(AirFlow Console \n Scheduler)
-    B2(Meta Data \n Store)
-    B3(OpCenter
-    Console)
-    subgraph Ephimeral-Pods
-        C1(DAG Tasks)
-        C2(AirByte Tasks)
-        C3( Other Computes/ AI Tasks )
+        subgraph Pods-Runtime
+            B1(AirFlow Console \n Scheduler)
+            B2(Meta Data \n Store)
+            B3(OpCenter
+            Console)
+            subgraph Ephimeral-Pods
+                C1(DAG Tasks)
+                C2(AirByte Tasks)
+                C3( Other Computes/ AI Tasks )
 
+            end
+        end
     end
-  end
-
-  end
     subgraph External-Systems
         D1(AWS - S3)
         D2(Other Data Stores)
