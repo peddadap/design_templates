@@ -53,84 +53,109 @@ at spike up, most noticably airbyte , airflow and snowflake and with a brand new
     
 ### AirByte Changes
 
-The components colored in green are areas where design and behavior of the existing system will be altered 
+- The components colored in green are areas where design and behavior of the existing system will be altered  
+- The Airbyte YML CDK extensions are python modules that abstract logic based on needed behavior for a given platform
+    * Custom Authenticator ; When authentication falls outside basic and simple token model
+    * Custom Requester ; Requires packing pre-computed payloads that have to be dynamically formed
+    * Custom Record Extractor ; When response parsing is warranted, for example converting xml to json paylods
+    * With the ability to enhance bheavior as needed
+
+- The Airbyte YML CDK extensions on Destination connectors is optional, may be needed to inject Data Quality Checks, will be refined as part DQ-Framework Design
+
+
 
 ```mermaid
 flowchart LR
    A1(Source \n Rest API)
     subgraph AirByte-Jobs
         subgraph Connections-yML 
-            subgraph Alt-Connectors-1
-                A2(Source \n Connector-1)
-                A2.1(Python \n Modules):::module
+            subgraph Source
+                A2(Source \n Connector)
+                A2.1(Airbyte YML \n CDK extensions):::module
             end
             A3(Connection)
-            subgraph Alt-Connectors-2
+            subgraph Destination
                 A4(Destination \n Connector)
-                A4.1(Python \n Module):::module
+                A4.1(Airbyte YML \n CDK extensions):::module
             end
-            A5(Transient \n Destination):::module
+            A5( EBS / EFS \n Transient Storage):::module
         end
     end
     classDef module stroke:#0f0
     A1-->AirByte-Jobs
-    Alt-Connectors-1-->A3
-    A3-->Alt-Connectors-2
+    Source-->A3
+    A3-->Destination
     A4-->A5
 
 
 ```
 ### AirFlow Changes
 
-The components colored in green are areas where design and behavior of the existing system will be altered 
+- The components colored in green are areas where design and behavior of the existing system will be altered 
+- The AWS s3 buckets will be "1" per platform, where the bucket name is mapped to "Platform  Name" as in example "cell-expert" 
+- Each bucket will contain files specific to a named paltform
+- Within the platform bucket, each operator account {OA} files will be indexed by {yyyy}-{mm}-{dd}-{oa-id}.parquet, for example # "2024-01-31-1234.parquet"
+- If operator has multiple streams, a stream suffix will follow the {oa} qualifier like {yyyy}-{mm}-{dd}-{oa-1}-{stream-name}.parquet
 
 ```mermaid
 flowchart LR
    subgraph "AirFlow"
         G(Scheduler)
         subgraph "Typical-DAG"
-            1[Connection -1]
+            1[Platform- OA1]
             2[DQ-CHK-1]:::module
-            3[Connection -2]
-            4[Connection -3]
+            3[Platform- OA2]
+            4[Platform- OA3]
             5[DQ-CHK-2]:::module
-            6[Move]:::module
-            7[Transient \n Destination]:::module
+            6{All-OK ?}
+            7[Move]:::module
+            8[Transient \n Files]:::module
+            9[DBT-External \n Table Refresh]:::module
+            10[DBT- SF\n JOBS]:::small-font
+            S3[S3 - Bucket]:::module
+            
         end
     end
     
-    subgraph "S3"
-        S3.1(Connection 1 \n # S3):::module
-        S3.2(Connection 2 \n # S3):::module
-        S3.3(Connection 3 \n # S3):::module
-    end
-    classDef module stroke:#0f0
+    
+    classDef module stroke:#0f0,font-size:9pt;
+    classDef small-font font-size:9pt
+  
     1--> 2
     2 --> 3
     2 --> 4
     3--> 5
     4-->5
     5-->6
-    6-->7
+    6-->|Y|7
+    7-->8
+    9-->10
     G-->Typical-DAG
-    AirFlow-->S3
-
+    8-->S3
+    S3-->9
+    
 ```
 ### SnowFlake Changes
-The components colored in green are areas where design and behavior of the existing system will be altered 
-
+- The components colored in green are areas where design and behavior of the existing system will be altered 
+- For S3 bucket and file naming convention; please see section Airflow for the details
+- Example again here for reference  
+    * **S3 Bucket Name** : cell-expert
+    * **File-Name** : {yyyy}-{mm}-{dd}-{operator-account-name-id}.parquet
+    * **Sample-FileName** : 2024-01-31-5678.parquet  
+- Files in S3 don't appear automatically on External Tables in SnowFlake
+- Simplest option is run an alter statement which referesh the external table meta data that has file listing 
+- An elegant option is to set up AWS SQS [ Simple Queing Service] that SF can subscribe to
+- External Table will be partitioned based on year, month and date of the file name through column expressions 
+- External tables will be slow, this can be compensated thru materialized views if needed, the latency increase is small price to pay for a decopuled system
 
 ```mermaid
 flowchart
     subgraph S3-Bucket
-        A[Connection \n Name]
-        B[Year]
-        C[Month]
-        D[Date]
-        subgraph Parquet-File
-            Col1
-            Col2
-            Col3
+        A[S3 -Bucket Name \n `cell-expert`]
+        subgraph FileStructure
+            Col1[co1: airbyte_id]
+            Col2[col2 :airbyte_date_time]
+            Col3[col3 :raw_data]
         end
     end
     subgraph Connectivity
@@ -144,8 +169,7 @@ flowchart
         4[Optional \n Materialized Views]
     end
     classDef module stroke:#0f0
-    A-->B
-    B-->C 
+    A--> FileStructure
     C-->D
     D-->Parquet-File
     1-->2
