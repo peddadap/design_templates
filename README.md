@@ -48,64 +48,112 @@ at spike up, most noticably airbyte , airflow and snowflake and with a brand new
 
     * Externalize Raw Sources to cheaper alternative like S3
     * Phase-I, source datasets will appear as external tables inside SnowFlake
-    * Phase II and beyond will engineer Snowflake for optimal computer and storage
+    * Phase II and beyond will engineer Snowflake for optimal compute and storage
  
     
-## System Architecture
+### AirByte Changes
+
+The components colored in green are areas where design and behavior of the existing system will be altered 
 
 ```mermaid
-
-graph TB
-  
-  subgraph "Architectural Block"
-    subgraph "Sources" 
-      A(Source 1)
-      B(Source 2)
-      C(Source N)
+flowchart LR
+   A1(Source \n Rest API)
+    subgraph AirByte-Jobs
+        subgraph Connections-yML 
+            subgraph Alt-Connectors-1
+                A2(Source \n Connector-1)
+                A2.1(Python \n Modules):::module
+            end
+            A3(Connection)
+            subgraph Alt-Connectors-2
+                A4(Destination \n Connector)
+                A4.1(Python \n Module):::module
+            end
+            A5(Transient \n Destination):::module
+        end
     end
+    classDef module stroke:#0f0
+    A1-->AirByte-Jobs
+    Alt-Connectors-1-->A3
+    A3-->Alt-Connectors-2
+    A4-->A5
 
-    subgraph "Connectors"
-      D(Connector 1)
-      E(Connector 2)
-      F(Connector N)
-      SC(Shared Components)
-    end
 
-    subgraph "DAG System"
-      G(Scheduler)
-      subgraph "Typical DAG"
-        1[Task 1]
-        2[Task 2]
-        3[Task 3]
-        4[Task 4]
-        5[Task 5]
-    end
-    end
+```
+### AirFlow Changes
 
- 
+The components colored in green are areas where design and behavior of the existing system will be altered 
+
+```mermaid
+flowchart LR
+   subgraph "AirFlow"
+        G(Scheduler)
+        subgraph "Typical-DAG"
+            1[Connection -1]
+            2[DQ-CHK-1]:::module
+            3[Connection -2]
+            4[Connection -3]
+            5[DQ-CHK-2]:::module
+            6[Move]:::module
+            7[Transient \n Destination]:::module
+        end
+    end
+    
     subgraph "S3"
-      I(Destination 1)
-      J(Destination 2)
-      K(Destination N)
+        S3.1(Connection 1 \n # S3):::module
+        S3.2(Connection 2 \n # S3):::module
+        S3.3(Connection 3 \n # S3):::module
     end
-end
+    classDef module stroke:#0f0
+    1--> 2
+    2 --> 3
+    2 --> 4
+    3--> 5
+    4-->5
+    5-->6
+    6-->7
+    G-->Typical-DAG
+    AirFlow-->S3
 
-  A --> D
-  B --> E
-  C --> F
-  D --> G
-  E --> G
-  F --> G
+```
+### SnowFlake Changes
+The components colored in green are areas where design and behavior of the existing system will be altered 
 
-  G --> I
-  G --> J
-  G --> K
-  1--> 2
-  1 --> 3
-  2 --> 4
-  3 --> 4
-  4 --> 5
 
+```mermaid
+flowchart
+    subgraph S3-Bucket
+        A[Connection \n Name]
+        B[Year]
+        C[Month]
+        D[Date]
+        subgraph Parquet-File
+            Col1
+            Col2
+            Col3
+        end
+    end
+    subgraph Connectivity
+        X[AWS SQS \n OR \n  SnowFlake-Task]
+    end
+
+    subgraph SF
+        1[External \n Stage]
+        2[External \n Table]
+        3[ Partitioned \n Column Expressions \n $FilePath]
+        4[Optional \n Materialized Views]
+    end
+    classDef module stroke:#0f0
+    A-->B
+    B-->C 
+    C-->D
+    D-->Parquet-File
+    1-->2
+    2-->3
+    3-->4
+    S3-Bucket-->Connectivity
+    Connectivity-->SF
+    class S3-Bucket,Connectivity,SF module
 
 ```
 
