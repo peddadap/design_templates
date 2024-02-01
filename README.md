@@ -152,7 +152,7 @@ flowchart LR
 flowchart
     subgraph S3-Bucket
         A[S3 -Bucket Name \n `cell-expert`]
-        subgraph FileStructure
+        subgraph Parquet-FileStructure
             Col1[co1: airbyte_id]
             Col2[col2 :airbyte_date_time]
             Col3[col3 :raw_data]
@@ -169,9 +169,7 @@ flowchart
         4[Optional \n Materialized Views]
     end
     classDef module stroke:#0f0
-    A--> FileStructure
-    C-->D
-    D-->Parquet-File
+    A--> Parquet-FileStructure
     1-->2
     2-->3
     3-->4
