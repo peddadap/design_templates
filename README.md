@@ -78,7 +78,7 @@ flowchart LR
                 A4(Destination \n Connector)
                 A4.1(Airbyte YML \n CDK extensions):::module
             end
-            A5( EBS / EFS \n Transient Storage):::module
+            A5( DQ  \n Transient Storage):::module
         end
     end
     classDef module stroke:#0f0
@@ -91,7 +91,7 @@ flowchart LR
 ```
 ### AirFlow Changes
 
-- The components colored in green are areas where design and behavior of the existing system will be altered 
+- The components colored in green are areas where design and behavior of the existing system may be altered 
 - The AWS s3 buckets will be "1" per platform, where the bucket name is mapped to "Platform  Name" as in example "cell-expert" 
 - Each bucket will contain files specific to a named paltform
 - Within the platform bucket, each operator account {OA} files will be indexed by {yyyy}-{mm}-{dd}-{oa-id}.parquet, for example # "2024-01-31-1234.parquet"
