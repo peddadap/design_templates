@@ -1,19 +1,25 @@
-
-# Software Design 
-
-The design here incorporates  areas that are either being reengineered or extended to enhance the current functionality of several systems  
-at spike up, most noticably airbyte , airflow and snowflake and with a brand new system for operational mangement  
-
 ## Table of Contents
-
+- [Preface](#preface)
 - [Overview](#overview)
-- [System Architecture](#system-architecture)
-- [Flow Diagram](#flow-diagram)
-- [Sequence Diagram](#sequence-flow)
+- [System Design](#system-design)
+- [Flow Design](#flow-diagram)
+- [Sequence Design](#sequence-flow)
 - [Data Quality](#dq-framework)
-- [Deployment Model](#dq-model)
-- [Contributing](#contributing)
+- [Deployment Model](#deployment-model)
+- [Contribution](#contributing)
 - [License](#license)
+
+## Preface 
+
+The design scope here covers areas that are either being reengineered or/and extended to enhance the current functionality of several systems at spike up, most noticeably airbyte,airflow and snowflake. A brand new system for operational management is being introduced, more on this below.  
+
+There are 3 parts/modules to Phase-1 release. The High Level Design here will try and address the specifics of each of the modules
+
+On the immediate need, Module 1, consists of the following sub-modules -- please see the project plan on details of Module 1 and its parts
+ 
+- 1.1: `Stage-1: Raw Zone  Re-Engineered Pipelines = Casino Operator Source --> AWS S3-Files`
+- 1.2: `Stage-2: Raw Zone S3 Files Black Box DQ Checks`
+- 1.3 `RAW Data S3 Files to Snowflake Raw Zone Linkage`
 
 ## Overview
 
@@ -23,10 +29,10 @@ at spike up, most noticably airbyte , airflow and snowflake and with a brand new
 
 - AirByte  
     * Align connector development around low code framework like  Airbyte YAML CDK
-    * A path to decomission current source connectors that have significant code foot print 
-    * A second level of generalization around YAML connectors on common operations like custom authnetication, specialized request construction  
+    * A path to decommission current source connectors that have significant code foot print 
+    * A second level of generalization around YAML connectors on common operations like custom authentication, specialized request construction 
       and wide format response parsing
-    * Component registry build and deployment for resuability
+    * Component registry build and deployment for reusability
 
 - AirFlow
     * Re-engineered DAG's to improve system utilization by collating and parallelizing platform operations 
@@ -36,12 +42,12 @@ at spike up, most noticably airbyte , airflow and snowflake and with a brand new
 - Op Control Center
 
     * Decouple Business Op activity from airbyte connector framework 
-    * Data Source Management --  new connections, reapir or fix connectivity and maintaince of source data assets 
+    * Data Source Management --  new connections, repair or fix connectivity and maintenance of source data assets 
     * Dedicated OP control center with near realtime monitoring and activity logs
 
 - S3 RAW Zone
 
-    * All sourced datasets will be stored on AWS S3 as parqauet files
+    * All sourced datasets will be stored on AWS S3 as parquet files
     * Sources extracted will be partitioned by time and/or with other context appropriate for optimal downstream consumption
 
 - SnowFlake
@@ -49,7 +55,8 @@ at spike up, most noticably airbyte , airflow and snowflake and with a brand new
     * Externalize Raw Sources to cheaper alternative like S3
     * Phase-I, source datasets will appear as external tables inside SnowFlake
     * Phase II and beyond will engineer Snowflake for optimal compute and storage
- 
+
+## System Design
     
 ### AirByte Changes
 
@@ -57,8 +64,8 @@ at spike up, most noticably airbyte , airflow and snowflake and with a brand new
 - The Airbyte YML CDK extensions are python modules that abstract logic based on needed behavior for a given platform
     * Custom Authenticator ; When authentication falls outside basic and simple token model
     * Custom Requester ; Requires packing pre-computed payloads that have to be dynamically formed
-    * Custom Record Extractor ; When response parsing is warranted, for example converting xml to json paylods
-    * With the ability to enhance bheavior as needed
+    * Custom Record Extractor ; When response parsing is warranted, for example converting xml to json payload
+    * With the ability to enhance behavior as needed
 
 - The Airbyte YML CDK extensions on Destination connectors is optional, may be needed to inject Data Quality Checks, will be refined as part DQ-Framework Design
 
@@ -92,10 +99,30 @@ flowchart LR
 ### AirFlow Changes
 
 - The components colored in green are areas where design and behavior of the existing system may be altered 
-- The AWS s3 buckets will be "1" per platform, where the bucket name is mapped to "Platform  Name" as in example "cell-expert" 
-- Each bucket will contain files specific to a named paltform
-- Within the platform bucket, each operator account {OA} files will be indexed by {yyyy}-{mm}-{dd}-{oa-id}.parquet, for example # "2024-01-31-1234.parquet"
-- If operator has multiple streams, a stream suffix will follow the {oa} qualifier like {yyyy}-{mm}-{dd}-{oa-1}-{stream-name}.parquet
+- The AWS s3 buckets will have a logical structure where each platform will sit under a hierarchal root  
+- Under the Platform hierarchical root, each unique data-stream will be written by date and time as sourced
+- The hierarchy goes somewhat like  ` "AirByte" > "Platform_Name > "Stream_Name" > "YYYY" > "MM" > "DD" > {yyyy}_{mm}_{dd}_{H24ssms}.parquet`,
+- At the very top, "AirByte" is the actual bucket
+- User/ Admin will be able to view and  drill down the folders in the hierarchy
+- The S3 is an object store, though AWS S3 console gives users the ability to drill/navigate the folders, these are not actual folder rather the Key itself for that given object
+
+##### Visual Map of S3 
+```mermaid
+graph TD
+    A(Airbyte) --> B(CellExpert)
+    A --> C(Mexos)
+    B --> D(RegistrationReportStream)
+    B --> E(DynamicVariablesReportStream)
+    D --> I(2024)
+    I --> J(02)
+    J -->K(12)
+    K --> L[20240212_235900000.parquet]
+    C --> F(Stream-1)
+    C --> G(Stream-2)
+
+
+```
+##### Typical Airflow Flow Control
 
 ```mermaid
 flowchart LR
@@ -138,24 +165,22 @@ flowchart LR
 ### SnowFlake Changes
 - The components colored in green are areas where design and behavior of the existing system will be altered 
 - For S3 bucket and file naming convention; please see section Airflow for the details
-- Example again here for reference  
-    * **S3 Bucket Name** : cell-expert
-    * **File-Name** : {yyyy}-{mm}-{dd}-{operator-account-name-id}.parquet
-    * **Sample-FileName** : 2024-01-31-5678.parquet  
 - Files in S3 don't appear automatically on External Tables in SnowFlake
-- Simplest option is run an alter statement which referesh the external table meta data that has file listing 
-- An elegant option is to set up AWS SQS [ Simple Queing Service] that SF can subscribe to
-- External Table will be partitioned based on year, month and date of the file name through column expressions 
-- External tables will be slow, this can be compensated thru materialized views if needed, the latency increase is small price to pay for a decopuled system
+- Simplest option is run an alter statement which refresh the external table meta data that has file listing 
+- An elegant option is to set up AWS SQS [ Simple Queuing Service] that SF can subscribe to
+- External Table will be partitioned based on year, month and date of the file or/and path through column expressions 
+- External tables are likely to will be slow,i.e. relative to querying against tables with SF managed storage, this can be compensated thru materialized views if needed, the latency increase is small price to pay to have a de-coupled system
+- S3 File format is open, Parquet being on top of the choice list , alternate formats that may be considered are json, csv in that order
 
 ```mermaid
 flowchart
     subgraph S3-Bucket
-        A[S3 -Bucket Name \n `cell-expert`]
+        A[S3 -Bucket Name \n `with the full path`]
         subgraph Parquet-FileStructure
             Col1[co1: airbyte_id]
             Col2[col2 :airbyte_date_time]
             Col3[col3 :raw_data]
+            Col4[col4 :additional_cntx \n optional]
         end
     end
     subgraph Connectivity
@@ -198,11 +223,11 @@ graph LR
     OC.E -->OC.F[ Air Byte System]
 end
 ```
-#### AirFlow Vendor Plaform Specific Flow
+#### AirFlow Vendor Platform Specific Flow
 
 * For a give source platform, the DAG's in airflow will be instrumental to control flow  of business data
-* A DAG flow may contain more than 1 Airbyte connection, for exaple multiple operator accounts could constitute a successful run, in such case, a DAG will encapsulate the flow rules
-* Data Quality Module will instrument all flow for quality aspect of source data -- low count, no count, failed resonses etc
+* A DAG flow may contain more than 1 Airbyte connection, for example multiple operator accounts could constitute a successful run, in such case, a DAG will encapsulate the flow rules
+* Data Quality Module will instrument all flow for quality aspect of source data -- low count, no count, failed responses etc
 * Upon successful Flow Run data will flow into AWS S3 as Parquet Files
 ``` mermaid
 graph LR
@@ -235,10 +260,10 @@ end
 #### AirByte Platform Specific Flow
 
 * AirByte will continue to be the platform of choice to configure  source  assets 
-* AirByte connections will go thru Resuable Component Modules to strictly adhere to YML model based connections
+* AirByte connections will go thru Reusable Component Modules to strictly adhere to YML model based connections
 * Airflow will "Always" host connections in manual model, external service will trigger designed connections
-* Minimal to no interaction with AirByte for bussiness , dev-ops will configuration , setup and  tuning 1 time
-* OpCeneter provides the interactivity with AirFlow for business users
+* Minimal to no interaction with AirByte for business , dev-ops will configuration , setup and  tuning 1 time
+* Op-Center provides the interactivity with AirFlow for business users
 
 
 ``` mermaid
@@ -253,14 +278,14 @@ end
 ```
 #### SnowFlake Medallion Flow
 
-* SnowFlake Raw Zones will be exteranalized via SF External Tables
+* SnowFlake Raw Zones will be externalized via SF External Tables
 * Existing DBT Jobs should continue to Function as today 
-* No Changes to downstream processes in Phase-I
+* No Changes to downstream processes in Phase-I beyond RaW/Bronze
 
 ``` mermaid
 graph TB
     subgraph SnowFlake
-        SF.A[S3 Parquet]-->SF.B[Bronze/RAW]
+        SF.A[S3 Parquet]-->SF.B[Bronze/RAW \n External Tables]
         SF.B-->SF.C(DBT Process 1)
         SF.C-->SF.D[SF Silver]
         SF.D -->SF.E(DBT Process 2)
@@ -270,7 +295,7 @@ end
 ```
 
 ## Sequence Flow
-- User Flow On Opcenter
+- User Flow On Op-center
 - Similar Flow is scheduled nightly in airbyte for OpCenter Manager to do similar connectivity checks
 ```mermaid
 sequenceDiagram
@@ -306,7 +331,7 @@ sequenceDiagram
    
 ```
 ## DQ Framework
-There are 4 main components of Any DQ System, and they are:
+The Design around DQ is still evolving, at the very core the DQ subsystem is likely to contain the following modules
 
 - Metrics Computation:
     - Profiles leverages Analyzers to analyze each column of a dataset.
@@ -316,7 +341,16 @@ There are 4 main components of Any DQ System, and they are:
 - Constraint Verification:
     - Perform data validation on a dataset with respect to various constraints set by you.
 - Metrics Repository
-    - Allows for persistence and tracking of Deequ runs over time.
+    - Allows for persistence and tracking of DQ runs over time.  
+
+##### Phase-I DQ Scope
+
+- Black box DQ 
+  * Record Count
+  * Daily Minimums 
+  * Daily variance from historical averages
+
+##### DQ Component Model
 ```mermaid
 
 graph TD
@@ -359,7 +393,7 @@ graph TD
 
 - Spike data platform will be baed on Kubernetes Stack
 - Kubernetes will be designed in a way to set the node group to auto-scale
-- Few Pods like ; AirFlow Scheduler; Op-Center Cosole will have persistant pods
+- Few Pods like ; AirFlow Scheduler; Op-Center Console will have persistent pods
 - Pods will be short lived, the ones that are related to Airflow and AirByte Tasks
 
 - An Abstract End Deployment Model
@@ -410,4 +444,4 @@ graph TD
 
 [Specify the license under which your software design is released.]
 
-Feel free to customize this template based on your specific software design and how you want to represent it using Mermaid.js. Include more diagrams or details as needed for your project.
+Feel free to customize to this template based on your specific software engineering processes
