@@ -101,24 +101,25 @@ flowchart LR
 - The components colored in green are areas where design and behavior of the existing system may be altered 
 - The AWS s3 buckets will have a logical structure where each platform will sit under a hierarchal root  
 - Under the Platform hierarchical root, each unique data-stream will be written by date and time as sourced
-- The hierarchy goes somewhat like  ` "AirByte" > "Platform_Name > "Stream_Name" > "YYYY" > "MM" > "DD" > {yyyy}_{mm}_{dd}_{H24ssms}.parquet`,
-- At the very top, "AirByte" is the actual bucket
+- The hierarchy goes somewhat like  `"Platform_Name > "Operator Account" > "Stream_Name" > "YYYY" > "MM" > "DD" > {yyyy}_{mm}_{dd}_{H24ssms}.parquet`,
+- At the very top, each platform will have a designated bucket 
 - User/ Admin will be able to view and  drill down the folders in the hierarchy
 - The S3 is an object store, though AWS S3 console gives users the ability to drill/navigate the folders, these are not actual folder rather the Key itself for that given object
 
 ##### Visual Map of S3 
 ```mermaid
 graph TD
-    A(Airbyte) --> B(CellExpert)
-    A --> C(Mexos)
+    A(CellExpert)
+    A -->B(Operator-1)
+    C(Mexos) -->C1.1(Operator-1)
     B --> D(RegistrationReportStream)
     B --> E(DynamicVariablesReportStream)
-    D --> I(2024)
-    I --> J(02)
-    J -->K(12)
-    K --> L[20240212_235900000.parquet]
-    C --> F(Stream-1)
-    C --> G(Stream-2)
+    D --> I(2024/02/12/)
+    I --> L[20240212_235900000.parquet]
+    C1.1 --> F(Stream-1)
+    C1.1 --> G(Stream-2)
+    F --> H( ........)
+    G --> J( ........)
 
 
 ```
@@ -129,11 +130,25 @@ flowchart LR
    subgraph "AirFlow"
         G(Scheduler)
         subgraph "Typical-DAG"
-            1[Platform- OA1]
-            2[DQ-CHK-1]:::module
-            3[Platform- OA2]
-            4[Platform- OA3]
-            5[DQ-CHK-2]:::module
+            subgraph "AirByte-TiggerSync"
+                1.1[Platform1-OA1]
+                1.2[Platform1-OA2]
+                1.3[Platform1-OA ..N]
+            end
+            subgraph "Transient-Location"
+                2.1[Platform1-OA1]
+                2.2[Platform1-OA2]
+                2.3[Platform1-OA ..N]
+            end
+            
+            subgraph "DQ"
+                3.1[Platform1- OA-1 \nDQ]
+                3.2[Platform1 - OA-2 N \nDQ]
+                3.3[Platform1 - OA-N \n DQ]
+            end
+            AirByte-TiggerSync -->Transient-Location
+            Transient-Location -->DQ         
+            DQ -->6
             6{All-OK ?}
             7[Move]:::module
             8[Transient \n Files]:::module
@@ -144,16 +159,10 @@ flowchart LR
         end
     end
     
-    
     classDef module stroke:#0f0,font-size:9pt;
-    classDef small-font font-size:9pt
+    classDef small-font font-size:9pt;
+    class DQ,2.1,2.2,2.3 module
   
-    1--> 2
-    2 --> 3
-    2 --> 4
-    3--> 5
-    4-->5
-    5-->6
     6-->|Y|7
     7-->8
     9-->10
@@ -233,10 +242,8 @@ end
 graph LR
     subgraph AirFlow Flow
         0[AirByte Service Link]
-        1[DataSet #1]
-        2[DataSet #2]
-        3[DataSet #3]
-        4[DataSet #4] 
+        1[Operator Account #1 ..N]
+       
         5[Data Quality Framework]
         6[Gating Process]
         7{Success/Failure}
@@ -244,11 +251,7 @@ graph LR
         9{Failure}
         10(S3 Parquet)
         0-->1
-        1--> 2
-        1--> 3
-        2--> 4
-        3--> 4
-        4-->5
+        1-->5
         5-->6
         6-->7
         7-->8
@@ -353,7 +356,7 @@ The Design around DQ is still evolving, at the very core the DQ subsystem is lik
 ##### DQ Component Model
 ```mermaid
 
-graph TD
+flowchart BT
   subgraph Data
     A[DataSet # 1]
     B[DataSet # 2]
@@ -381,10 +384,10 @@ graph TD
     F1[Reports]
   end
 
-  Rules-->Validators
-  Metrics<-->Rules
+  Validators-->Rules
+  Rules-->Metrics
   Data-->Validators
-  Reports<-->Metrics
+  Metrics-->Reports
 
 
 ```
