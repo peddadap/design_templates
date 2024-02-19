@@ -6,8 +6,6 @@
 - [Sequence Design](#sequence-flow)
 - [Data Quality](#dq-framework)
 - [Deployment Model](#deployment-model)
-- [Contribution](#contributing)
-- [License](#license)
 
 ## Preface 
 
@@ -438,13 +436,3 @@ graph TD
   Pods-Runtime -->External-Systems
 
 ```
-
-## Contributing
-
-[Include guidelines for others to contribute to your software design. This could include information about design reviews or contributions.]
-
-## License
-
-[Specify the license under which your software design is released.]
-
-Feel free to customize to this template based on your specific software engineering processes
