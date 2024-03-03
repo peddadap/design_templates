@@ -5,6 +5,8 @@
 - [Flow Design](#flow-diagram)
 - [Sequence Design](#sequence-flow)
 - [Data Quality](#dq-framework)
+    * [Data Quality Data Model](#dq-data-model)
+    * [Data Quality Data Flow](#dq-data-flow)
 - [Deployment Model](#deployment-model)
 
 ## Preface 
@@ -389,7 +391,7 @@ flowchart BT
 
 
 ```
-##### DQ Data Model
+##### DQ-Data-Model
 
 ```mermaid
 erDiagram
@@ -409,6 +411,7 @@ erDiagram
     DATA_SOURCE_ITEM {
         int id
         int job_id
+        int job_detail_id
         int data_source_id
         string item_name
         timestamp created_at
@@ -436,9 +439,14 @@ erDiagram
         string severity
         string status
     }
-   
-    OPERATOR{
+    PLATFORM{
         int id
+        string name
+
+    }
+    OPERATOR_ACCOUNT{
+        int id
+        int platform_id
         string name
         timestamp last_updated
         string username
@@ -472,14 +480,15 @@ erDiagram
     DATA_QUALITY_RULE||--|{DATA_QUALITY_ISSUE:"references"
     DATA_QUALITY_DIMENSION||--|{DATA_QUALITY_RULE:"references"
     JOB||--||DATA_SOURCE_ITEM:"references"
+    JOB_DETAIL||--||DATA_SOURCE_ITEM:"references"
     JOB||--|{JOB_DETAIL:"references"
     DATA_QUALITY_ISSUE||--|{DATA_SOURCE_ITEM:"references"
-    OPERATOR||--|{DATA_SOURCE:"references"
-
+    OPERATOR_ACCOUNT||--|{DATA_SOURCE:"references"
+    PLATFORM||--|{OPERATOR_ACCOUNT:"references"
 
 ```
 
-##### DQ Detailed Flow
+##### DQ-Data-Flow
 
 ``` mermaid
 flowchart LR;
