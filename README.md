@@ -389,7 +389,134 @@ flowchart BT
 
 
 ```
+##### DQ Data Model
 
+```mermaid
+erDiagram
+
+    DATA_SOURCE {
+        int id
+        int operator_id
+        string platform_name
+        string operator 
+        string account_id 
+        string stream_name 
+        string path
+        timestamp created_at
+        timestamp last_updated
+    }
+
+    DATA_SOURCE_ITEM {
+        int id
+        int job_id
+        int data_source_id
+        string item_name
+        timestamp created_at
+        timestamp last_updated_at
+    }
+
+     DATA_QUALITY_DIMENSION {
+        int id
+        string name
+        string description
+    }
+   
+    DATA_QUALITY_RULE {
+        int id
+        int data_quality_dimension_id
+        string name
+        string description
+        string expression
+    }
+    DATA_QUALITY_ISSUE {
+        int id
+        int data_quality_rule_id
+        int data_source_item_id
+        string description
+        string severity
+        string status
+    }
+   
+    OPERATOR{
+        int id
+        string name
+        timestamp last_updated
+        string username
+        string password
+        int views
+        int clicks
+        timestamp last_updated
+    }
+
+    JOB{
+        int id
+        int operator_id
+        timestamp created_at
+        timestamp updated_at
+        string status
+        int records_loaded
+        timestamp last_updated
+    }
+
+    JOB_DETAIL {
+
+        int id
+        int job_id  
+        string attempt_id
+        string status 
+        int records_loaded
+        timestamp last_updated
+    }
+
+    DATA_SOURCE||--|{DATA_SOURCE_ITEM:"references"
+    DATA_QUALITY_RULE||--|{DATA_QUALITY_ISSUE:"references"
+    DATA_QUALITY_DIMENSION||--|{DATA_QUALITY_RULE:"references"
+    JOB||--||DATA_SOURCE_ITEM:"references"
+    JOB||--|{JOB_DETAIL:"references"
+    DATA_QUALITY_ISSUE||--|{DATA_SOURCE_ITEM:"references"
+    OPERATOR||--|{DATA_SOURCE:"references"
+
+
+```
+
+##### DQ Detailed Flow
+
+``` mermaid
+flowchart LR;
+
+        subgraph "DAG-1"
+            direction LR
+            subgraph "AIR-BYTE"
+                direction LR
+                A[AirByte OPA TASK]
+                B[S3 Folder \n Mirror];
+            end
+            A-->|outputs|B
+            subgraph "JOB-META-DATA"
+                direction LR
+                C[MYSQL \n DATA_SOURCE_ITEM];
+                D[MYSQL \n JOB];
+                E[MYSQL \n JOB_DETAIL];
+            end
+            D-->E-->C
+        end
+        AIR-BYTE-->JOB-META-DATA
+    
+        subgraph "DAG-2"
+            direction LR
+            G['Job_Id']-->|Job Cntx| H[Fetch \n Data \n Source Item/Items]
+            H-->I[Apply \n Data \n Quality Rule/Rules]
+            I-->|result| J{Decision}
+            J-->|failure| K[Raise \n Data \n Data Quality Issue]
+            J-->|success| L[Move Data \n From Mirror to \n Final S3]
+            
+
+        end
+
+    DAG-1-->X('XCOM')
+    X-->DAG-2
+    
+```
 ## Deployment Model
 
 - Spike data platform will be baed on Kubernetes Stack
