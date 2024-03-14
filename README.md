@@ -395,15 +395,20 @@ flowchart BT
 
 ```mermaid
 erDiagram
-
+    %%{init: { "theme": "forest" } }%%
     DATA_SOURCE {
         int id
-        int operator_id
+        int account_id
         string platform_name
-        string operator 
-        string account_id 
-        string stream_name 
+        string source_name 
         string path
+        timestamp created_at
+        timestamp last_updated
+    }
+     DATA_SOURCE_DQ{
+        int id
+        int data_source_id
+        int data_quality_rule_id
         timestamp created_at
         timestamp last_updated
     }
@@ -413,7 +418,9 @@ erDiagram
         int job_id
         int job_detail_id
         int data_source_id
+        string item_ref
         string item_name
+        string status
         timestamp created_at
         timestamp last_updated_at
     }
@@ -439,20 +446,19 @@ erDiagram
         string severity
         string status
     }
+   
     PLATFORM{
         int id
         string name
 
     }
-    OPERATOR_ACCOUNT{
+    ACCOUNT{
         int id
         int platform_id
         string name
         timestamp last_updated
         string username
         string password
-        int views
-        int clicks
         timestamp last_updated
     }
 
@@ -483,47 +489,58 @@ erDiagram
     JOB_DETAIL||--||DATA_SOURCE_ITEM:"references"
     JOB||--|{JOB_DETAIL:"references"
     DATA_QUALITY_ISSUE||--|{DATA_SOURCE_ITEM:"references"
-    OPERATOR_ACCOUNT||--|{DATA_SOURCE:"references"
-    PLATFORM||--|{OPERATOR_ACCOUNT:"references"
-
+    ACCOUNT||--|{DATA_SOURCE:"references"
+    PLATFORM||--|{ACCOUNT:"references"
+    DATA_QUALITY_RULE||--|{DATA_SOURCE_DQ:"references"
+    DATA_SOURCE||--|{DATA_SOURCE_DQ:"reference"
+  
+  
 ```
 
 ##### DQ-Data-Flow
 
 ``` mermaid
-flowchart LR;
+flowchart TD;
 
-        subgraph "DAG-1"
-            direction LR
-            subgraph "AIR-BYTE"
+  
+            subgraph "STG1-AIRBYTE"
                 direction LR
-                A[AirByte OPA TASK]
-                B[S3 Folder \n Mirror];
+                stg1.A[AirByte OPA TASK]
+                stg1.B[S3 Folder \n Temp];
             end
-            A-->|outputs|B
-            subgraph "JOB-META-DATA"
+            stg1.A-->|outputs|stg1.B
+            subgraph "STG2-OPCENTER"
                 direction LR
-                C[MYSQL \n DATA_SOURCE_ITEM];
-                D[MYSQL \n JOB];
-                E[MYSQL \n JOB_DETAIL];
+                stg2.A[AirByte \n REST API]
+                stg2.B[ OPCenter \n DB \n Job/Job_Detail]
+                stg2.C[File  \n Processor]
+                stg2.D[TX \n Files]
+                stg2.E[S3 Mirror]
+                stg2.F[OPCenter \n DB \n Data Source Items ]
+                stg2.A -->|Job/Job-Detail|stg2.B
+                stg2.B-->|S3 Temp $ OPA Path|stg2.C
+                stg2.C-->| Break Into |stg2.D
+                stg2.D-->| Write into | stg2.E
+                stg2.E-->| Queue Files for DQ|stg2.F
             end
-            D-->E-->C
-        end
-        AIR-BYTE-->JOB-META-DATA
-    
-        subgraph "DAG-2"
+      
+        subgraph "STG3-DQ"
             direction LR
-            G['Job_Id']-->|Job Cntx| H[Fetch \n Data \n Source Item/Items]
-            H-->I[Apply \n Data \n Quality Rule/Rules]
-            I-->|result| J{Decision}
-            J-->|failure| K[Raise \n Data \n Data Quality Issue]
-            J-->|success| L[Move Data \n From Mirror to \n Final S3]
+            stg3.A[ OPCenter \n DB]
+            stg3.B[Data-Source \n Item/Items]
+            stg3.C[Data \n Quality Rule/Rules]
+            stg3.D{Decision}
+            stg3.E[Raise \n Data \n Data Quality Issue]
+            stg3.F[Move Data \n From S3 Mirror to \n Final S3]
+            stg3.A-->|Fetch|stg3.B
+            stg3.B-->|apply rules|stg3.C
+            stg3.C-->|results|stg3.D
+            stg3.D-->|failure| stg3.E
+            stg3.D-->|success| stg3.F
             
-
         end
-
-    DAG-1-->X('XCOM')
-    X-->DAG-2
+    STG1-AIRBYTE --->| JOB-ID |STG2-OPCENTER
+    STG2-OPCENTER-->| JOB-ID|STG3-DQ
     
 ```
 ## Deployment Model

@@ -1,14 +1,19 @@
 ``` mermaid
 erDiagram
-
+    %%{init: { "theme": "forest" } }%%
     DATA_SOURCE {
         int id
-        int operator_id
+        int account_id
         string platform_name
-        string operator 
-        string account_id 
-        string stream_name 
+        string source_name 
         string path
+        timestamp created_at
+        timestamp last_updated
+    }
+     DATA_SOURCE_DQ{
+        int id
+        int data_source_id
+        int data_quality_rule_id
         timestamp created_at
         timestamp last_updated
     }
@@ -18,7 +23,9 @@ erDiagram
         int job_id
         int job_detail_id
         int data_source_id
+        string item_ref
         string item_name
+        string status
         timestamp created_at
         timestamp last_updated_at
     }
@@ -44,20 +51,19 @@ erDiagram
         string severity
         string status
     }
+   
     PLATFORM{
         int id
         string name
 
     }
-    OPERATOR_ACCOUNT{
+    ACCOUNT{
         int id
         int platform_id
         string name
         timestamp last_updated
         string username
         string password
-        int views
-        int clicks
         timestamp last_updated
     }
 
@@ -88,8 +94,12 @@ erDiagram
     JOB_DETAIL||--||DATA_SOURCE_ITEM:"references"
     JOB||--|{JOB_DETAIL:"references"
     DATA_QUALITY_ISSUE||--|{DATA_SOURCE_ITEM:"references"
-    OPERATOR_ACCOUNT||--|{DATA_SOURCE:"references"
-    PLATFORM||--|{OPERATOR_ACCOUNT:"references"
+    ACCOUNT||--|{DATA_SOURCE:"references"
+    PLATFORM||--|{ACCOUNT:"references"
+    DATA_QUALITY_RULE||--|{DATA_SOURCE_DQ:"references"
+    DATA_SOURCE||--|{DATA_SOURCE_DQ:"reference"
+  
+  
 
 ```
 
