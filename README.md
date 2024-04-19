@@ -7,6 +7,7 @@
 - [Data Quality](#dq-framework)
     * [Data Quality Data Model](#dq-data-model)
     * [Data Quality Data Flow](#dq-data-flow)
+    * [Recovery Data Flow](#recovery-data-flow)
 - [Deployment Model](#deployment-model)
 
 ## Preface 
@@ -512,7 +513,7 @@ erDiagram
 
 ```
 
-#### High Level System Flow
+#### DQ Data Flow
 
 The main flow consists of 3 stages with airflow as the container that orchestrates these 3 stages
 
@@ -570,7 +571,7 @@ flowchart TD;
     
 ```
 
-### High Level Recovery Flow
+### Recovery Data Flow
 
 The recovery flow is an additional DAG in airflow that leverages the main flow with the exception of STG1 where the platform connector runs in a recovery mode instead of a normal/scheduled run.
 
