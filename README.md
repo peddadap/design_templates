@@ -608,6 +608,12 @@ flowchart LR
     end
 
 ```
+
+### Recovery Mock Data Snapshot
+
+![alt text](recovery.png)
+
+
 ## Deployment Model
 
 - Spike data platform will be baed on Kubernetes Stack
