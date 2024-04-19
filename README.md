@@ -47,7 +47,7 @@ On the immediate need, Module 1, consists of the following sub-modules -- please
 
 - S3 RAW Zone
 
-    * All sourced datasets will be stored on AWS S3 as parquet files
+    * All sourced datasets will be stored on AWS S3 as json files
     * Sources extracted will be partitioned by time and/or with other context appropriate for optimal downstream consumption
 
 - SnowFlake
@@ -101,7 +101,7 @@ flowchart LR
 - The components colored in green are areas where design and behavior of the existing system may be altered 
 - The AWS s3 buckets will have a logical structure where each platform will sit under a hierarchal root  
 - Under the Platform hierarchical root, each unique data-stream will be written by date and time as sourced
-- The hierarchy goes somewhat like  `"Platform_Name > "Operator Account" > "Stream_Name" > "YYYY" > "MM" > "DD" > {yyyy}_{mm}_{dd}_{H24ssms}.parquet`,
+- The hierarchy goes somewhat like  `"Platform_Name > "Operator Account" > "Stream_Name" > "YYYY" > "MM" > "DD" > {yyyy}_{mm}_{dd}_{H24ssms}.json`,
 - At the very top, each platform will have a designated bucket 
 - User/ Admin will be able to view and  drill down the folders in the hierarchy
 - The S3 is an object store, though AWS S3 console gives users the ability to drill/navigate the folders, these are not actual folder rather the Key itself for that given object
@@ -115,7 +115,7 @@ graph TD
     B --> D(RegistrationReportStream)
     B --> E(DynamicVariablesReportStream)
     D --> I(2024/02/12/)
-    I --> L[20240212_235900000.parquet]
+    I --> L[20240212_235900000.json]
     C1.1 --> F(Stream-1)
     C1.1 --> G(Stream-2)
     F --> H( ........)
@@ -179,13 +179,13 @@ flowchart LR
 - An elegant option is to set up AWS SQS [ Simple Queuing Service] that SF can subscribe to
 - External Table will be partitioned based on year, month and date of the file or/and path through column expressions 
 - External tables are likely to will be slow,i.e. relative to querying against tables with SF managed storage, this can be compensated thru materialized views if needed, the latency increase is small price to pay to have a de-coupled system
-- S3 File format is open, Parquet being on top of the choice list , alternate formats that may be considered are json, csv in that order
+- S3 File format is open, Json being on top of the choice list , alternate formats that may be considered are parquet, csv in that order
 
 ```mermaid
 flowchart
     subgraph S3-Bucket
         A[S3 -Bucket Name \n `with the full path`]
-        subgraph Parquet-FileStructure
+        subgraph Json-FileStructure
             Col1[co1: airbyte_id]
             Col2[col2 :airbyte_date_time]
             Col3[col3 :raw_data]
@@ -203,7 +203,7 @@ flowchart
         4[Optional \n Materialized Views]
     end
     classDef module stroke:#0f0
-    A--> Parquet-FileStructure
+    A--> Json-FileStructure
     1-->2
     2-->3
     3-->4
@@ -237,7 +237,7 @@ end
 * For a give source platform, the DAG's in airflow will be instrumental to control flow  of business data
 * A DAG flow may contain more than 1 Airbyte connection, for example multiple operator accounts could constitute a successful run, in such case, a DAG will encapsulate the flow rules
 * Data Quality Module will instrument all flow for quality aspect of source data -- low count, no count, failed responses etc
-* Upon successful Flow Run data will flow into AWS S3 as Parquet Files
+* Upon successful Flow Run data will flow into AWS S3 as Json Files
 ``` mermaid
 graph LR
     subgraph AirFlow Flow
@@ -249,7 +249,7 @@ graph LR
         7{Success/Failure}
         8{Success}
         9{Failure}
-        10(S3 Parquet)
+        10(S3 Json)
         0-->1
         1-->5
         5-->6
@@ -275,7 +275,7 @@ graph TB
         AB.A[Connections]-->AB.B[Sources]
         AB.A-->AB.C[Platform Framework]
         AB.D[AirFlow Call]-->AB.A
-        AB.D -->AB.E(AWS S3 Parquet)
+        AB.D -->AB.E(AWS S3 Json)
 end
 
 ```
@@ -288,7 +288,7 @@ end
 ``` mermaid
 graph TB
     subgraph SnowFlake
-        SF.A[S3 Parquet]-->SF.B[Bronze/RAW \n External Tables]
+        SF.A[S3 Json]-->SF.B[Bronze/RAW \n External Tables]
         SF.B-->SF.C(DBT Process 1)
         SF.C-->SF.D[SF Silver]
         SF.D -->SF.E(DBT Process 2)
@@ -346,14 +346,14 @@ The Design around DQ is still evolving, at the very core the DQ subsystem is lik
 - Metrics Repository
     - Allows for persistence and tracking of DQ runs over time.  
 
-##### Phase-I DQ Scope
+#### Phase-I DQ Scope
 
 - Black box DQ 
   * Record Count
   * Daily Minimums 
   * Daily variance from historical averages
 
-##### DQ Component Model
+#### DQ Component Model
 ```mermaid
 
 flowchart BT
@@ -391,9 +391,21 @@ flowchart BT
 
 
 ```
-##### DQ-Data-Model
+#### DQ-Data-Model
 
-```mermaid
+The conceptual Data Model here captures the core structures of the system. These structures hold state for the system when it is put to operate. The state of the system resides in these blocks/structures that help detail how the system is performing.  
+
+The system state is comprised of 
+
+- DQ State , Consists of reference tables and Data Quality Checks on Job that were run
+
+- Job State, Captures Data From AirByte Runs
+
+
+
+
+
+``` mermaid
 erDiagram
     %%{init: { "theme": "forest" } }%%
     DATA_SOURCE {
@@ -440,13 +452,13 @@ erDiagram
     }
     DATA_QUALITY_ISSUE {
         int id
+        int data_quality_run
         int data_quality_rule_id
         int data_source_item_id
         string description
         string severity
         string status
     }
-   
     PLATFORM{
         int id
         string name
@@ -464,6 +476,7 @@ erDiagram
 
     JOB{
         int id
+        string job_type
         int operator_id
         timestamp created_at
         timestamp updated_at
@@ -482,22 +495,35 @@ erDiagram
         timestamp last_updated
     }
 
-    DATA_SOURCE||--|{DATA_SOURCE_ITEM:"references"
-    DATA_QUALITY_RULE||--|{DATA_QUALITY_ISSUE:"references"
-    DATA_QUALITY_DIMENSION||--|{DATA_QUALITY_RULE:"references"
-    JOB||--||DATA_SOURCE_ITEM:"references"
-    JOB_DETAIL||--||DATA_SOURCE_ITEM:"references"
-    JOB||--|{JOB_DETAIL:"references"
-    DATA_QUALITY_ISSUE||--|{DATA_SOURCE_ITEM:"references"
-    ACCOUNT||--|{DATA_SOURCE:"references"
-    PLATFORM||--|{ACCOUNT:"references"
-    DATA_QUALITY_RULE||--|{DATA_SOURCE_DQ:"references"
-    DATA_SOURCE||--|{DATA_SOURCE_DQ:"reference"
+
+    DATA_SOURCE||--|{DATA_SOURCE_ITEM:"contains dataitems"
+    DATA_QUALITY_RULE||--|{DATA_QUALITY_ISSUE:"specifies the constraint"
+    DATA_QUALITY_DIMENSION||--|{DATA_QUALITY_RULE:"specifies the type of rule"
+    JOB||--||DATA_SOURCE_ITEM:"produces"
+    JOB_DETAIL||--||DATA_SOURCE_ITEM:"details the source"
+    JOB||--|{JOB_DETAIL:"details the job"
+    DATA_QUALITY_ISSUE||--|{DATA_SOURCE_ITEM:"ties it to specific source item"
+    ACCOUNT||--|{DATA_SOURCE:"provides"
+    PLATFORM||--|{ACCOUNT:"configures"
+    DATA_QUALITY_RULE||--|{DATA_SOURCE_DQ:"enforces the quality"
+    DATA_SOURCE||--|{DATA_SOURCE_DQ:"constraints"
   
   
+
 ```
 
-##### DQ-Data-Flow
+#### High Level System Flow
+
+The main flow consists of 3 stages with airflow as the container that orchestrates these 3 stages
+
+- STG1 is extraction where source datasets are fetched via pre-configured airbyte connectors
+
+- STG2 expands the sourced batch data into individual transactional files
+
+- STG3 performs the Data Quality Checks 
+
+- STG4 not shown here wires the outputs from STG3 into SF, with AirFlow DBT tasks that finally conclude the run
+
 
 ``` mermaid
 flowchart TD;
@@ -542,6 +568,44 @@ flowchart TD;
     STG1-AIRBYTE --->| JOB-ID |STG2-OPCENTER
     STG2-OPCENTER-->| JOB-ID|STG3-DQ
     
+```
+
+### High Level Recovery Flow
+
+The recovery flow is an additional DAG in airflow that leverages the main flow with the exception of STG1 where the platform connector runs in a recovery mode instead of a normal/scheduled run.
+
+- The Airbyte source connector in the recovery mode relies on a key input, dates to be recovered  
+
+- The connector is passed a list of dates { zero count days} from DQ state  
+
+- The Airbyte internal methods over-ride the default chunking process, i.e. specific dates to source the payloads
+
+- The recovered data flows into the same configured paths as the main process
+
+``` mermaid
+flowchart LR
+
+    subgraph "Recovery Flow"
+        direction LR
+
+        subgraph "STG1"
+            direction LR
+            r.stg1.A[AirByte Recovery \n Connector]
+            r.stg1.B[ S3 Folder \n Temp]
+            r.stg1.A -->r.stg1.B
+        end
+        subgraph "STG2"
+        r.stg2.A[STG2-OPCENTER]
+        end
+
+        subgraph "STG3"
+        r.stg3.A[STG3-DQ]
+        end
+
+        STG1 --> STG2 --> STG3
+
+    end
+
 ```
 ## Deployment Model
 

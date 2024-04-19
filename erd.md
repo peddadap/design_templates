@@ -45,13 +45,13 @@ erDiagram
     }
     DATA_QUALITY_ISSUE {
         int id
+        int data_quality_run
         int data_quality_rule_id
         int data_source_item_id
         string description
         string severity
         string status
     }
-   
     PLATFORM{
         int id
         string name
@@ -69,6 +69,7 @@ erDiagram
 
     JOB{
         int id
+        string job_type
         int operator_id
         timestamp created_at
         timestamp updated_at
@@ -87,17 +88,18 @@ erDiagram
         timestamp last_updated
     }
 
-    DATA_SOURCE||--|{DATA_SOURCE_ITEM:"references"
-    DATA_QUALITY_RULE||--|{DATA_QUALITY_ISSUE:"references"
-    DATA_QUALITY_DIMENSION||--|{DATA_QUALITY_RULE:"references"
-    JOB||--||DATA_SOURCE_ITEM:"references"
-    JOB_DETAIL||--||DATA_SOURCE_ITEM:"references"
-    JOB||--|{JOB_DETAIL:"references"
-    DATA_QUALITY_ISSUE||--|{DATA_SOURCE_ITEM:"references"
-    ACCOUNT||--|{DATA_SOURCE:"references"
-    PLATFORM||--|{ACCOUNT:"references"
-    DATA_QUALITY_RULE||--|{DATA_SOURCE_DQ:"references"
-    DATA_SOURCE||--|{DATA_SOURCE_DQ:"reference"
+
+    DATA_SOURCE||--|{DATA_SOURCE_ITEM:"contains dataitems"
+    DATA_QUALITY_RULE||--|{DATA_QUALITY_ISSUE:"specifies the constraint"
+    DATA_QUALITY_DIMENSION||--|{DATA_QUALITY_RULE:"specifies the type of rule"
+    JOB||--||DATA_SOURCE_ITEM:"produces"
+    JOB_DETAIL||--||DATA_SOURCE_ITEM:"details the source"
+    JOB||--|{JOB_DETAIL:"details the job"
+    DATA_QUALITY_ISSUE||--|{DATA_SOURCE_ITEM:"ties it to specific source item"
+    ACCOUNT||--|{DATA_SOURCE:"provides"
+    PLATFORM||--|{ACCOUNT:"configures"
+    DATA_QUALITY_RULE||--|{DATA_SOURCE_DQ:"enforces the quality"
+    DATA_SOURCE||--|{DATA_SOURCE_DQ:"constraints"
   
   
 
